@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rain Volume Calculator</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Rain Volume Calculator</h1>
+            <p class="subtitle">Calculate precipitation volume within a polygon using OpenWeatherMap and OpenStreetMap</p>
+        </header>
+        
+        <div id="main-container">
+            <div id="controls">
+                <div class="control-group">
+                    <label for="api-key">OpenWeatherMap API Key:</label>
+                    <input type="text" id="api-key" placeholder="Enter your API key">
+                    <button id="save-api-key">Save</button>
+                </div>
+                
+                <div class="control-group">
+                    <label for="location-search">Search Location:</label>
+                    <input type="text" id="location-search" placeholder="Enter city name or address">
+                    <button id="search-btn" disabled>Search</button>
+                    <span class="help-text">Find and navigate to a location</span>
+                </div>
+                
+                <div class="control-group">
+                    <label>Instructions:</label>
+                    <ol>
+                        <li>Enter your OpenWeatherMap API key above</li>
+                        <li>Use the polygon tool on the map to draw a region</li>
+                        <li>Click "Calculate Rain Volume" to get results</li>
+                    </ol>
+                </div>
+                
+                <div class="control-group">
+                    <label for="grid-resolution">Grid Resolution (km):</label>
+                    <input type="number" id="grid-resolution" value="5" min="1" max="50" step="1" disabled>
+                    <span class="help-text">Auto-adjusted based on polygon size</span>
+                </div>
+                
+                <div class="control-group">
+                    <button id="toggle-overlay-btn" disabled>Show Precipitation Overlay</button>
+                    <span class="help-text">Display low-resolution precipitation layer on map</span>
+                </div>
+                
+                <button id="calculate-btn" disabled>Calculate Rain Volume</button>
+                
+                <div id="results" style="display: none;">
+                    <h3>Results</h3>
+                    <div id="results-content"></div>
+                </div>
+                
+                <div id="forecast-chart" style="display: none;">
+                    <h3>Hourly Forecast</h3>
+                    <canvas id="rain-chart"></canvas>
+                </div>
+                
+                <div id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Calculating rain volume...</p>
+                </div>
+            </div>
+            
+            <div id="map"></div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Draw JS -->
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <!-- Turf.js for geometric calculations -->
+    <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    
+    <!-- Chart.js for forecast visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <script src="app.js"></script>
+</body>
+</html>
