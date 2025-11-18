@@ -8,8 +8,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true
-        },
-        icon: path.join(__dirname, 'icon.png')
+        }
     });
 
     win.loadFile('index.html');

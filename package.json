@@ -44,8 +44,7 @@
             "x64"
           ]
         }
-      ],
-      "icon": "icon.ico"
+      ]
     },
     "mac": {
       "target": [
@@ -57,7 +56,6 @@
           ]
         }
       ],
-      "icon": "icon.icns",
       "category": "public.app-category.utilities"
     },
     "nsis": {
