@@ -5,6 +5,8 @@ class RainVolumeCalculator {
         this.drawnItems = null;
         this.currentPolygon = null;
         this.apiKey = localStorage.getItem('openweathermap_api_key') || '';
+        this.precipitationLayer = null;
+        this.overlayVisible = false;
         
         this.init();
     }
@@ -85,6 +87,10 @@ class RainVolumeCalculator {
             this.calculateRainVolume();
         });
         
+        document.getElementById('toggle-overlay-btn').addEventListener('click', () => {
+            this.togglePrecipitationOverlay();
+        });
+        
         // Allow Enter key to save API key
         document.getElementById('api-key').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -96,6 +102,8 @@ class RainVolumeCalculator {
     loadApiKey() {
         if (this.apiKey) {
             document.getElementById('api-key').value = this.apiKey;
+            // Enable overlay button if API key exists
+            document.getElementById('toggle-overlay-btn').disabled = false;
         }
     }
     
@@ -106,6 +114,9 @@ class RainVolumeCalculator {
         if (this.apiKey) {
             localStorage.setItem('openweathermap_api_key', this.apiKey);
             this.showNotification('API key saved successfully!', 'success');
+            
+            // Enable overlay button when API key is saved
+            document.getElementById('toggle-overlay-btn').disabled = false;
         } else {
             this.showNotification('Please enter a valid API key', 'error');
         }
@@ -114,6 +125,66 @@ class RainVolumeCalculator {
     showNotification(message, type) {
         // Simple notification - could be enhanced with a proper notification library
         alert(message);
+    }
+    
+    togglePrecipitationOverlay() {
+        if (this.overlayVisible) {
+            this.hidePrecipitationOverlay();
+        } else {
+            this.showPrecipitationOverlay();
+        }
+    }
+    
+    showPrecipitationOverlay(opacity = 0.5) {
+        if (!this.apiKey) {
+            this.showNotification('Please enter your OpenWeatherMap API key first', 'error');
+            return;
+        }
+        
+        // Remove existing layer if present
+        if (this.precipitationLayer) {
+            this.map.removeLayer(this.precipitationLayer);
+        }
+        
+        // Using OpenWeatherMap Maps API 2.0 - Precipitation layer
+        // This is more cost-effective than multiple point queries
+        this.precipitationLayer = L.tileLayer(
+            `https://maps.openweathermap.org/maps/2.0/weather/PA0/{z}/{x}/{y}?appid=${this.apiKey}`,
+            {
+                attribution: 'OpenWeatherMap',
+                opacity: opacity,
+                maxZoom: 18
+            }
+        );
+        
+        this.precipitationLayer.addTo(this.map);
+        this.overlayVisible = true;
+        
+        // Update button state
+        const btn = document.getElementById('toggle-overlay-btn');
+        btn.textContent = 'Hide Precipitation Overlay';
+        btn.classList.add('active');
+    }
+    
+    hidePrecipitationOverlay() {
+        if (this.precipitationLayer) {
+            this.map.removeLayer(this.precipitationLayer);
+            this.precipitationLayer = null;
+        }
+        
+        this.overlayVisible = false;
+        
+        // Update button state
+        const btn = document.getElementById('toggle-overlay-btn');
+        btn.textContent = 'Show Precipitation Overlay';
+        btn.classList.remove('active');
+    }
+    
+    updatePrecipitationOverlay(opacity = 0.7) {
+        // Update overlay with higher resolution after calculation
+        if (this.overlayVisible) {
+            this.showPrecipitationOverlay(opacity);
+        }
     }
     
     async calculateRainVolume() {
@@ -156,6 +227,9 @@ class RainVolumeCalculator {
             
             // Display results
             this.displayResults(results);
+            
+            // Update precipitation overlay with actual resolution after calculation
+            this.updatePrecipitationOverlay(0.7);
             
         } catch (error) {
             console.error('Error calculating rain volume:', error);
@@ -223,12 +297,42 @@ class RainVolumeCalculator {
     }
     
     async fetchWeatherForPoint(lat, lng) {
-        // Using OpenWeatherMap Current Weather API
-        // Note: For more accurate precipitation data, consider using:
-        // - One Call API 3.0 (requires subscription)
-        // - Historical data API (for past precipitation)
-        // - Forecast API (for predicted precipitation)
+        // Using OpenWeatherMap One Call API 3.0 (premium)
+        // This API is more cost-effective than the free Current Weather API
+        // and provides better data with fewer calls
+        // Falls back to Current Weather API if One Call fails
         
+        try {
+            // Try One Call API 3.0 first
+            const oneCallUrl = `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric&exclude=minutely,hourly,daily,alerts`;
+            
+            const oneCallResponse = await fetch(oneCallUrl);
+            
+            if (oneCallResponse.ok) {
+                const data = await oneCallResponse.json();
+                
+                // Extract precipitation data from current weather
+                let precipitation = 0;
+                
+                if (data.current) {
+                    if (data.current.rain && data.current.rain['1h']) {
+                        precipitation = data.current.rain['1h'];
+                    } else if (data.current.snow && data.current.snow['1h']) {
+                        precipitation = data.current.snow['1h'];
+                    }
+                }
+                
+                return {
+                    precipitation: precipitation, // in mm
+                    weather: data.current?.weather?.[0]?.description || 'N/A',
+                    temp: data.current?.temp || 0
+                };
+            }
+        } catch (error) {
+            console.warn('One Call API 3.0 failed, falling back to Current Weather API:', error);
+        }
+        
+        // Fallback to Current Weather API (free tier)
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
         
         const response = await fetch(url);

@@ -89,6 +89,24 @@ button:disabled {
     cursor: not-allowed;
 }
 
+#toggle-overlay-btn {
+    background: #3b82f6;
+    font-size: 14px;
+    padding: 10px 20px;
+}
+
+#toggle-overlay-btn:hover:not(:disabled) {
+    background: #2563eb;
+}
+
+#toggle-overlay-btn.active {
+    background: #ef4444;
+}
+
+#toggle-overlay-btn.active:hover:not(:disabled) {
+    background: #dc2626;
+}
+
 #calculate-btn {
     background: #10b981;
     font-size: 16px;

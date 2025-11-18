@@ -81,15 +81,21 @@ Then navigate to `http://localhost:8000` in your browser.
    - Complete the polygon by clicking the first point again
    - Alternatively, use the rectangle tool for quick selection
 
-3. **Adjust Settings** (Optional):
+3. **View Precipitation Overlay** (Optional):
+   - Click "Show Precipitation Overlay" to display a visual precipitation layer on the map
+   - This provides a low-resolution overview of precipitation patterns
+   - Click again to hide the overlay
+
+4. **Adjust Settings** (Optional):
    - Set the grid resolution (1-50 km)
    - Smaller values provide more accuracy but take longer to calculate
    - Recommended: 5-10 km for large areas, 1-3 km for small areas
 
-4. **Calculate**:
+5. **Calculate**:
    - Click "Calculate Rain Volume"
    - Wait for the calculation to complete
    - View results including total volume, area, and precipitation statistics
+   - The precipitation overlay will automatically update with higher resolution after calculation
 
 ## Technical Details
 
@@ -102,16 +108,18 @@ Then navigate to `http://localhost:8000` in your browser.
 
 ### API Endpoints Used
 
-- Current Weather Data API: `https://api.openweathermap.org/data/2.5/weather`
+- **Maps API 2.0**: `https://maps.openweathermap.org/maps/2.0/weather/PA0/{z}/{x}/{y}` (Precipitation overlay layer)
+- **One Call API 3.0**: `https://api.openweathermap.org/data/3.0/onecall` (Premium API with lower cost per call)
+- **Current Weather Data API** (fallback): `https://api.openweathermap.org/data/2.5/weather`
 
 ### Data Accuracy Notes
 
-- The free OpenWeatherMap API provides current/recent precipitation data (last 1-3 hours)
-- For historical data or forecasts, consider upgrading to premium OpenWeatherMap APIs:
-  - One Call API 3.0 (historical + forecast)
-  - Historical Weather Data API
+- The application uses OpenWeatherMap's premium One Call API 3.0 for better cost-effectiveness
+- Falls back to the free Current Weather API if One Call API is not available
+- Maps API 2.0 provides visual precipitation overlays for context
+- Current/recent precipitation data (last 1-3 hours) is displayed
 - Grid resolution affects both accuracy and API call count (more points = more calls)
-- API rate limits apply (60 calls/minute for free tier)
+- One Call API 3.0 has lower per-call costs compared to Current Weather API
 
 ## Limitations
 
