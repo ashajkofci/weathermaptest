@@ -108,18 +108,16 @@ Then navigate to `http://localhost:8000` in your browser.
 
 ### API Endpoints Used
 
-- **Maps API 2.0**: `https://maps.openweathermap.org/maps/2.0/weather/PA0/{z}/{x}/{y}` (Precipitation overlay layer)
-- **One Call API 3.0**: `https://api.openweathermap.org/data/3.0/onecall` (Premium API with lower cost per call)
-- **Current Weather Data API** (fallback): `https://api.openweathermap.org/data/2.5/weather`
+- **Weather Maps API 1.0**: `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png` (Precipitation overlay layer)
+- **Current Weather Data API**: `https://api.openweathermap.org/data/2.5/weather` (Point-specific precipitation data)
 
 ### Data Accuracy Notes
 
-- The application uses OpenWeatherMap's premium One Call API 3.0 for better cost-effectiveness
-- Falls back to the free Current Weather API if One Call API is not available
-- Maps API 2.0 provides visual precipitation overlays for context
+- The application uses OpenWeatherMap's free Current Weather API
+- Weather Maps API 1.0 provides visual precipitation overlays for context
 - Current/recent precipitation data (last 1-3 hours) is displayed
 - Grid resolution affects both accuracy and API call count (more points = more calls)
-- One Call API 3.0 has lower per-call costs compared to Current Weather API
+- API rate limits apply (60 calls/minute for free tier)
 
 ## Limitations
 

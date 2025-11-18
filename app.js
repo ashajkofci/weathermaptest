@@ -146,10 +146,10 @@ class RainVolumeCalculator {
             this.map.removeLayer(this.precipitationLayer);
         }
         
-        // Using OpenWeatherMap Maps API 2.0 - Precipitation layer
+        // Using OpenWeatherMap Maps API 1.0 - Precipitation layer
         // This is more cost-effective than multiple point queries
         this.precipitationLayer = L.tileLayer(
-            `https://maps.openweathermap.org/maps/2.0/weather/PA0/{z}/{x}/{y}?appid=${this.apiKey}`,
+            `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${this.apiKey}`,
             {
                 attribution: 'OpenWeatherMap',
                 opacity: opacity,
@@ -297,42 +297,7 @@ class RainVolumeCalculator {
     }
     
     async fetchWeatherForPoint(lat, lng) {
-        // Using OpenWeatherMap One Call API 3.0 (premium)
-        // This API is more cost-effective than the free Current Weather API
-        // and provides better data with fewer calls
-        // Falls back to Current Weather API if One Call fails
-        
-        try {
-            // Try One Call API 3.0 first
-            const oneCallUrl = `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric&exclude=minutely,hourly,daily,alerts`;
-            
-            const oneCallResponse = await fetch(oneCallUrl);
-            
-            if (oneCallResponse.ok) {
-                const data = await oneCallResponse.json();
-                
-                // Extract precipitation data from current weather
-                let precipitation = 0;
-                
-                if (data.current) {
-                    if (data.current.rain && data.current.rain['1h']) {
-                        precipitation = data.current.rain['1h'];
-                    } else if (data.current.snow && data.current.snow['1h']) {
-                        precipitation = data.current.snow['1h'];
-                    }
-                }
-                
-                return {
-                    precipitation: precipitation, // in mm
-                    weather: data.current?.weather?.[0]?.description || 'N/A',
-                    temp: data.current?.temp || 0
-                };
-            }
-        } catch (error) {
-            console.warn('One Call API 3.0 failed, falling back to Current Weather API:', error);
-        }
-        
-        // Fallback to Current Weather API (free tier)
+        // Using OpenWeatherMap Current Weather API (free tier)
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
         
         const response = await fetch(url);
