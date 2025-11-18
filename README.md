@@ -61,32 +61,30 @@ Or push to GitHub and enable Pages in repo settings.
 
 **Forecast chart**: Shows next 48 hours in 3-hour chunks. Two bars per time slot - precipitation in mm and volume in m³ for your polygon.
 
-## Technical Details
+## Stack
 
-### Technologies Used
+- Leaflet + Leaflet.Draw for the map stuff
+- Turf.js for geometry (area calc, point-in-polygon checks)
+- Chart.js for forecast visualization
+- OpenWeatherMap API for data
+- Vanilla JS, no framework bloat
 
-- **Leaflet.js**: Interactive map library for OpenStreetMap
-- **Leaflet Draw**: Plugin for drawing shapes on the map
-- **Turf.js**: Geospatial analysis library for area calculations and point-in-polygon tests
-- **OpenWeatherMap API**: Real-time weather and precipitation data
+## API usage
 
-### API Endpoints Used
+Uses two OpenWeatherMap endpoints:
 
-- **Weather Maps API 1.0**: `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png` (Precipitation overlay layer)
-- **Current Weather Data API**: `https://api.openweathermap.org/data/2.5/weather` (Point-specific precipitation data)
+1. **Current Weather API** (`/data/2.5/weather`) - Gets precipitation for each sample point. Returns `rain.1h` field with mm in the last hour.
 
-### Data Accuracy Notes
+2. **Forecast API** (`/data/2.5/forecast`) - Pulls 48-hour forecast for the chart. Free tier gives 3-hour intervals.
 
-- The application uses OpenWeatherMap's free Current Weather API
-- Weather Maps API 1.0 provides visual precipitation overlays for context
-- Current/recent precipitation data (last 1-3 hours) is displayed
-- Grid resolution affects both accuracy and API call count (more points = more calls)
-- API rate limits apply (60 calls/minute for free tier)
+3. **Precipitation tiles** (`/map/precipitation_new/{z}/{x}/{y}.png`) - Visual overlay. Maps API 1.0, works on free tier.
+
+4. **Geocoding API** (`/geo/1.0/direct`) - Location search.
+
+Free tier limits: 60 calls/min, 1M/month. Small polygons use ~10-50 calls per calculation. Big ones can hit a few hundred.
+
+Rate limiting built in - 100ms delay between point queries to stay under limits.
 
 ## License
 
-MIT License - Feel free to use and modify as needed.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT
