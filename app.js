@@ -291,9 +291,9 @@ class RainVolumeCalculator {
             // Auto-adjust grid resolution based on polygon size
             let gridResolution;
             if (areaKm2 < 1000) {
-                gridResolution = 10;
+                gridResolution = 8;
             } else if (areaKm2 <= 20000) {
-                gridResolution = 50;
+                gridResolution = 20;
             } else {
                 throw new Error(`Polygon too large (${areaKm2.toFixed(2)} km²). Maximum supported area is 20,000 km².`);
             }
@@ -538,6 +538,7 @@ class RainVolumeCalculator {
         return {
             volumeM3: totalVolume,
             volumeLiters: totalVolume * 1000,
+            volumeHm3: totalVolume / 1_000_000, // 1 hm³ = 1,000,000 m³
             areaM2: totalArea,
             areaKm2: totalArea / 1_000_000,
             avgPrecipitationMm: avgPrecipitation,
@@ -733,13 +734,13 @@ class RainVolumeCalculator {
         
         resultsContent.innerHTML = `
             <div class="result-item">
-                <strong>Total Rain Volume:</strong> ${results.volumeM3.toFixed(2)} m³ (${results.volumeLiters.toFixed(2)} liters)
+                <strong>Total Rain Volume (last hour):</strong> ${results.volumeHm3.toFixed(6)} hm³ (${results.volumeM3.toFixed(2)} m³)
             </div>
             <div class="result-item">
                 <strong>Polygon Area:</strong> ${results.areaKm2.toFixed(4)} km² (${results.areaM2.toFixed(2)} m²)
             </div>
             <div class="result-item">
-                <strong>Average Precipitation:</strong> ${results.avgPrecipitationMm.toFixed(2)} mm
+                <strong>Average Precipitation (last hour):</strong> ${results.avgPrecipitationMm.toFixed(2)} mm
             </div>
             <div class="result-item">
                 <strong>Precipitation Range:</strong> ${results.minPrecipitationMm.toFixed(2)} mm - ${results.maxPrecipitationMm.toFixed(2)} mm
@@ -752,7 +753,7 @@ class RainVolumeCalculator {
             </div>
             <div class="result-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #10b981;">
                 <em>Note: Volume calculated using numerical integration with inverse distance weighting (IDW) interpolation 
-                between sample points. Sample points are shown as colored circles on the map.</em>
+                between sample points. Sample points are shown as colored circles on the map. Data represents precipitation from the last hour.</em>
             </div>
         `;
         
