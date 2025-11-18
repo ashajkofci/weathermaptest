@@ -1,0 +1,66 @@
+{
+  "name": "rain-volume-calculator",
+  "version": "1.0.0",
+  "description": "Calculate rainfall volume over any area on a map",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder -mw"
+  },
+  "keywords": [
+    "rain",
+    "weather",
+    "calculator",
+    "map"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.rainvolumecalculator.app",
+    "productName": "Rain Volume Calculator",
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "!.git/**/*",
+      "!.github/**/*",
+      "!dist/**/*",
+      "!build/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
