@@ -8,6 +8,7 @@ class RainVolumeCalculator {
         this.precipitationLayer = null;
         this.overlayVisible = false;
         this.forecastChart = null;
+        this.samplePointsLayer = null;
         
         this.init();
     }
@@ -76,6 +77,13 @@ class RainVolumeCalculator {
             this.currentPolygon = null;
             document.getElementById('calculate-btn').disabled = true;
             this.hideResults();
+            this.hideForecastChart();
+            
+            // Remove sample points layer
+            if (this.samplePointsLayer) {
+                this.map.removeLayer(this.samplePointsLayer);
+                this.samplePointsLayer = null;
+            }
         });
     }
     
@@ -301,6 +309,9 @@ class RainVolumeCalculator {
             // Fetch precipitation data for the area
             const precipitationData = await this.fetchPrecipitationData(bbox, polygon, gridResolution);
             
+            // Display sampled points on the map
+            this.displaySamplePoints(precipitationData);
+            
             // Calculate total rain volume
             const results = this.calculateVolume(precipitationData, area, polygon, gridResolution);
             
@@ -325,24 +336,44 @@ class RainVolumeCalculator {
         // Create a grid of points within the bounding box
         const [minLng, minLat, maxLng, maxLat] = bbox;
         
-        // Convert grid resolution from km to degrees (approximate)
-        const gridResolutionDeg = gridResolutionKm / 111; // 1 degree ≈ 111 km
+        let currentResolution = gridResolutionKm;
+        let points = [];
         
-        const points = [];
-        
-        for (let lat = minLat; lat <= maxLat; lat += gridResolutionDeg) {
-            for (let lng = minLng; lng <= maxLng; lng += gridResolutionDeg) {
-                const point = turf.point([lng, lat]);
-                
-                // Check if point is inside polygon
-                if (turf.booleanPointInPolygon(point, polygon)) {
-                    points.push({ lat, lng });
+        // Try progressively smaller resolutions if no points are found
+        while (points.length === 0 && currentResolution >= 1) {
+            // Convert grid resolution from km to degrees (approximate)
+            const gridResolutionDeg = currentResolution / 111; // 1 degree ≈ 111 km
+            
+            points = [];
+            
+            for (let lat = minLat; lat <= maxLat; lat += gridResolutionDeg) {
+                for (let lng = minLng; lng <= maxLng; lng += gridResolutionDeg) {
+                    const point = turf.point([lng, lat]);
+                    
+                    // Check if point is inside polygon
+                    if (turf.booleanPointInPolygon(point, polygon)) {
+                        points.push({ lat, lng });
+                    }
                 }
+            }
+            
+            if (points.length === 0) {
+                // Reduce resolution and try again
+                currentResolution = Math.floor(currentResolution / 2);
+                if (currentResolution < 1) currentResolution = 1;
+                
+                console.log(`No points found with ${gridResolutionKm} km resolution. Trying ${currentResolution} km...`);
             }
         }
         
         if (points.length === 0) {
-            throw new Error('No points found within polygon. Try adjusting the grid resolution.');
+            throw new Error('No points found within polygon even with 1 km resolution. Polygon may be too small.');
+        }
+        
+        // Update the grid resolution display if it changed
+        if (currentResolution !== gridResolutionKm) {
+            document.getElementById('grid-resolution').value = currentResolution;
+            console.log(`Adjusted grid resolution from ${gridResolutionKm} km to ${currentResolution} km to ensure sample points.`);
         }
         
         // Fetch weather data for each point
@@ -413,30 +444,109 @@ class RainVolumeCalculator {
     }
     
     calculateVolume(precipitationData, totalArea, polygon, gridResolutionKm) {
-        // Calculate average precipitation across all points
-        const totalPrecipitation = precipitationData.reduce((sum, point) => sum + point.precipitation, 0);
-        const avgPrecipitation = totalPrecipitation / precipitationData.length;
+        // Use integration with linear interpolation between grid points
+        // We'll use a finer resolution mesh for integration
         
-        // Convert precipitation from mm to meters
-        const avgPrecipitationMeters = avgPrecipitation / 1000;
+        const gridResolutionDeg = gridResolutionKm / 111; // Convert km to degrees
         
-        // Calculate volume: area (m²) × precipitation (m) = volume (m³)
-        const volumeM3 = totalArea * avgPrecipitationMeters;
+        // Create a 2D grid for interpolation
+        const bbox = turf.bbox(polygon);
+        const [minLng, minLat, maxLng, maxLat] = bbox;
         
-        // Additional statistics
+        // Build a map of precipitation values at grid points
+        const precipMap = new Map();
+        precipitationData.forEach(point => {
+            const key = `${point.lat.toFixed(6)},${point.lng.toFixed(6)}`;
+            precipMap.set(key, point.precipitation);
+        });
+        
+        // Function to interpolate precipitation at any point using inverse distance weighting
+        const interpolatePrecipitation = (lat, lng) => {
+            // Find nearby grid points
+            const nearbyPoints = precipitationData.map(point => {
+                const distance = Math.sqrt(
+                    Math.pow(lat - point.lat, 2) + Math.pow(lng - point.lng, 2)
+                );
+                return { ...point, distance };
+            }).sort((a, b) => a.distance - b.distance);
+            
+            // Use inverse distance weighting (IDW) interpolation
+            // Take the 4 nearest points
+            const k = Math.min(4, nearbyPoints.length);
+            const nearest = nearbyPoints.slice(0, k);
+            
+            // If we're very close to a sample point, use its value
+            if (nearest[0].distance < 0.0001) {
+                return nearest[0].precipitation;
+            }
+            
+            // Calculate weights based on inverse distance squared
+            let weightedSum = 0;
+            let weightTotal = 0;
+            
+            nearest.forEach(point => {
+                const weight = 1 / (point.distance * point.distance + 0.0001); // Add small epsilon to avoid division by zero
+                weightedSum += point.precipitation * weight;
+                weightTotal += weight;
+            });
+            
+            return weightedSum / weightTotal;
+        };
+        
+        // Perform numerical integration using a finer grid
+        // Use integration resolution of 1/4 of the sampling resolution
+        const integrationResolutionDeg = gridResolutionDeg / 4;
+        
+        let totalVolume = 0;
+        let numCells = 0;
+        
+        // Integrate over the polygon using rectangular cells
+        for (let lat = minLat; lat < maxLat; lat += integrationResolutionDeg) {
+            for (let lng = minLng; lng < maxLng; lng += integrationResolutionDeg) {
+                // Check if the center of this cell is inside the polygon
+                const cellCenterLat = lat + integrationResolutionDeg / 2;
+                const cellCenterLng = lng + integrationResolutionDeg / 2;
+                
+                const point = turf.point([cellCenterLng, cellCenterLat]);
+                
+                if (turf.booleanPointInPolygon(point, polygon)) {
+                    // Calculate the area of this cell in square meters
+                    const cellPolygon = turf.polygon([[
+                        [lng, lat],
+                        [lng + integrationResolutionDeg, lat],
+                        [lng + integrationResolutionDeg, lat + integrationResolutionDeg],
+                        [lng, lat + integrationResolutionDeg],
+                        [lng, lat]
+                    ]]);
+                    const cellArea = turf.area(cellPolygon);
+                    
+                    // Interpolate precipitation at the cell center
+                    const precipitation = interpolatePrecipitation(cellCenterLat, cellCenterLng);
+                    
+                    // Add to total volume (precipitation in mm, convert to m)
+                    totalVolume += cellArea * (precipitation / 1000);
+                    numCells++;
+                }
+            }
+        }
+        
+        // Calculate statistics
+        const avgPrecipitation = precipitationData.reduce((sum, p) => sum + p.precipitation, 0) / precipitationData.length;
         const maxPrecipitation = Math.max(...precipitationData.map(p => p.precipitation));
         const minPrecipitation = Math.min(...precipitationData.map(p => p.precipitation));
         
         return {
-            volumeM3: volumeM3,
-            volumeLiters: volumeM3 * 1000,
+            volumeM3: totalVolume,
+            volumeLiters: totalVolume * 1000,
             areaM2: totalArea,
             areaKm2: totalArea / 1_000_000,
             avgPrecipitationMm: avgPrecipitation,
             maxPrecipitationMm: maxPrecipitation,
             minPrecipitationMm: minPrecipitation,
             numSamplePoints: precipitationData.length,
-            gridResolutionKm: gridResolutionKm
+            numIntegrationCells: numCells,
+            gridResolutionKm: gridResolutionKm,
+            integrationResolutionKm: (integrationResolutionDeg * 111).toFixed(2)
         };
     }
     
@@ -570,6 +680,53 @@ class RainVolumeCalculator {
         document.getElementById('forecast-chart').style.display = 'none';
     }
     
+    displaySamplePoints(precipitationData) {
+        // Remove existing sample points layer if present
+        if (this.samplePointsLayer) {
+            this.map.removeLayer(this.samplePointsLayer);
+        }
+        
+        // Create a feature group for sample points
+        this.samplePointsLayer = L.featureGroup();
+        
+        // Add circle markers for each sample point
+        precipitationData.forEach(point => {
+            // Color based on precipitation amount
+            let color;
+            if (point.precipitation === 0) {
+                color = '#94a3b8'; // Gray for no precipitation
+            } else if (point.precipitation < 1) {
+                color = '#60a5fa'; // Light blue
+            } else if (point.precipitation < 5) {
+                color = '#3b82f6'; // Medium blue
+            } else if (point.precipitation < 10) {
+                color = '#1d4ed8'; // Dark blue
+            } else {
+                color = '#1e3a8a'; // Very dark blue
+            }
+            
+            const marker = L.circleMarker([point.lat, point.lng], {
+                radius: 5,
+                fillColor: color,
+                color: '#ffffff',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            });
+            
+            marker.bindPopup(`
+                <strong>Sample Point</strong><br>
+                Lat: ${point.lat.toFixed(4)}<br>
+                Lng: ${point.lng.toFixed(4)}<br>
+                Precipitation: ${point.precipitation.toFixed(2)} mm
+            `);
+            
+            this.samplePointsLayer.addLayer(marker);
+        });
+        
+        this.samplePointsLayer.addTo(this.map);
+    }
+    
     displayResults(results) {
         const resultsDiv = document.getElementById('results');
         const resultsContent = document.getElementById('results-content');
@@ -590,9 +747,12 @@ class RainVolumeCalculator {
             <div class="result-item">
                 <strong>Sample Points:</strong> ${results.numSamplePoints} (grid resolution: ${results.gridResolutionKm} km)
             </div>
+            <div class="result-item">
+                <strong>Integration Cells:</strong> ${results.numIntegrationCells} (resolution: ${results.integrationResolutionKm} km)
+            </div>
             <div class="result-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #10b981;">
-                <em>Note: Current precipitation data is from OpenWeatherMap Current Weather API. 
-                Forecast data (shown in chart below) uses 3-hour intervals from the free forecast API.</em>
+                <em>Note: Volume calculated using numerical integration with inverse distance weighting (IDW) interpolation 
+                between sample points. Sample points are shown as colored circles on the map.</em>
             </div>
         `;
         
