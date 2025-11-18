@@ -24,6 +24,14 @@ dist/
 build/
 *.log
 
+# Electron build artifacts
+out/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+
 # Temporary files
 tmp/
 temp/

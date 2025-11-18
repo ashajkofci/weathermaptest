@@ -47,6 +47,67 @@ npx http-server -p 8000
 
 Or push to GitHub and enable Pages in repo settings.
 
+## Building Desktop Applications
+
+The app can be packaged as a desktop application for Windows and macOS using Electron.
+
+### Prerequisites
+
+- Node.js (version 18 or later)
+- npm
+
+### Local Build
+
+Install dependencies:
+```bash
+npm install
+```
+
+Build for your current platform:
+```bash
+npm run build
+```
+
+Build for specific platforms:
+```bash
+# Windows only
+npm run build:win
+
+# macOS only
+npm run build:mac
+
+# Both platforms
+npm run build:all
+```
+
+The built applications will be in the `dist/` directory.
+
+### Running the Desktop App
+
+To run the app in development mode:
+```bash
+npm start
+```
+
+### GitHub Actions Build
+
+The repository includes a GitHub Actions workflow that automatically builds executables for Windows and macOS:
+
+1. **Automatic builds on tags**: When you push a tag starting with `v` (e.g., `v1.0.0`), the workflow builds executables and creates a GitHub release.
+
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. **Manual builds**: You can trigger a build manually from the Actions tab in GitHub by selecting "Build and Release" and clicking "Run workflow".
+
+The workflow creates:
+- **Windows**: `.exe` installer (NSIS)
+- **macOS**: `.dmg` installer (supports both Intel and Apple Silicon)
+
+Built executables are uploaded as artifacts and attached to the GitHub release if triggered by a tag.
+
 ## Using the app
 
 **Search locations**: Type a city name to jump there on the map.
