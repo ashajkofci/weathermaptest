@@ -290,7 +290,13 @@ class RainVolumeCalculator {
             
             // Auto-adjust grid resolution based on polygon size
             let gridResolution;
-            if (areaKm2 < 1000) {
+            if (areaKm2 < 20) {
+                gridResolution = 1.5;
+            } else if (areaKm2 <= 200) {
+                gridResolution = 2;
+            } else if (areaKm2 <= 1000) {
+                gridResolution = 5;
+            } else if (areaKm2 <= 2000) {
                 gridResolution = 8;
             } else if (areaKm2 <= 20000) {
                 gridResolution = 20;
@@ -570,7 +576,7 @@ class RainVolumeCalculator {
             
             const labels = [];
             const precipitationMm = [];
-            const volumeM3 = [];
+            const volumeHm3 = [];
             
             forecastData.forEach(item => {
                 const date = new Date(item.dt * 1000);
@@ -591,12 +597,13 @@ class RainVolumeCalculator {
                 
                 precipitationMm.push(precip);
                 
-                // Calculate volume for this period
-                const volume = (areaM2 * precip) / 1000; // Convert mm to m
-                volumeM3.push(volume);
+                // Calculate volume for this period in hm³
+                const volumeM3 = (areaM2 * precip) / 1000; // Convert mm to m
+                const volumeHm3Value = volumeM3 / 1_000_000; // Convert m³ to hm³
+                volumeHm3.push(volumeHm3Value);
             });
             
-            this.displayForecastChart(labels, precipitationMm, volumeM3);
+            this.displayForecastChart(labels, precipitationMm, volumeHm3);
             
         } catch (error) {
             console.error('Error fetching forecast:', error);
@@ -604,7 +611,7 @@ class RainVolumeCalculator {
         }
     }
     
-    displayForecastChart(labels, precipitationMm, volumeM3) {
+    displayForecastChart(labels, precipitationMm, volumeHm3) {
         const chartDiv = document.getElementById('forecast-chart');
         const ctx = document.getElementById('rain-chart');
         
@@ -619,15 +626,15 @@ class RainVolumeCalculator {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Precipitation (mm)',
+                    label: 'Precipitation (mm per 3h)',
                     data: precipitationMm,
                     backgroundColor: 'rgba(59, 130, 246, 0.5)',
                     borderColor: 'rgba(59, 130, 246, 1)',
                     borderWidth: 1,
                     yAxisID: 'y'
                 }, {
-                    label: 'Volume (m³)',
-                    data: volumeM3,
+                    label: 'Volume (hm³ per 3h)',
+                    data: volumeHm3,
                     backgroundColor: 'rgba(16, 185, 129, 0.5)',
                     borderColor: 'rgba(16, 185, 129, 1)',
                     borderWidth: 1,
@@ -655,7 +662,7 @@ class RainVolumeCalculator {
                         position: 'left',
                         title: {
                             display: true,
-                            text: 'Precipitation (mm)'
+                            text: 'Precipitation (mm per 3h)'
                         }
                     },
                     y1: {
@@ -664,7 +671,7 @@ class RainVolumeCalculator {
                         position: 'right',
                         title: {
                             display: true,
-                            text: 'Volume (m³)'
+                            text: 'Volume (hm³ per 3h)'
                         },
                         grid: {
                             drawOnChartArea: false,
