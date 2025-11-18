@@ -49,7 +49,7 @@ Or push to GitHub and enable Pages in repo settings.
 
 ## Building Desktop Applications
 
-The app can be packaged as a desktop application for Windows and macOS using Electron.
+The app can be packaged as a portable desktop application for Windows and macOS using Electron.
 
 ### Prerequisites
 
@@ -70,10 +70,10 @@ npm run build
 
 Build for specific platforms:
 ```bash
-# Windows only
+# Windows only (creates portable .exe)
 npm run build:win
 
-# macOS only
+# macOS only (creates .zip with .app)
 npm run build:mac
 
 # Both platforms
@@ -81,6 +81,10 @@ npm run build:all
 ```
 
 The built applications will be in the `dist/` directory.
+
+**Important**: The builds create portable applications that don't require installation:
+- **Windows**: A single portable `.exe` file that can be run directly
+- **macOS**: A `.zip` file containing the `.app` bundle - extract and run
 
 ### Running the Desktop App
 
@@ -91,7 +95,7 @@ npm start
 
 ### GitHub Actions Build
 
-The repository includes a GitHub Actions workflow that automatically builds executables for Windows and macOS:
+The repository includes a GitHub Actions workflow that automatically builds portable executables for Windows and macOS:
 
 1. **Automatic builds on tags**: When you push a tag starting with `v` (e.g., `v1.0.0`), the workflow builds executables and creates a GitHub release.
 
@@ -103,8 +107,8 @@ The repository includes a GitHub Actions workflow that automatically builds exec
 2. **Manual builds**: You can trigger a build manually from the Actions tab in GitHub by selecting "Build and Release" and clicking "Run workflow".
 
 The workflow creates:
-- **Windows**: `.exe` installer (NSIS)
-- **macOS**: `.dmg` installer (supports both Intel and Apple Silicon)
+- **Windows**: Portable `.exe` (no installation required)
+- **macOS**: `.zip` file containing the `.app` bundle (supports both Intel and Apple Silicon)
 
 Built executables are uploaded as artifacts and attached to the GitHub release if triggered by a tag.
 
