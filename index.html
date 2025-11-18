@@ -29,6 +29,13 @@
                 </div>
                 
                 <div class="control-group">
+                    <label for="location-search">Search Location:</label>
+                    <input type="text" id="location-search" placeholder="Enter city name or address">
+                    <button id="search-btn" disabled>Search</button>
+                    <span class="help-text">Find and navigate to a location</span>
+                </div>
+                
+                <div class="control-group">
                     <label>Instructions:</label>
                     <ol>
                         <li>Enter your OpenWeatherMap API key above</li>
@@ -39,8 +46,8 @@
                 
                 <div class="control-group">
                     <label for="grid-resolution">Grid Resolution (km):</label>
-                    <input type="number" id="grid-resolution" value="5" min="1" max="50" step="1">
-                    <span class="help-text">Smaller values = more precise but slower</span>
+                    <input type="number" id="grid-resolution" value="5" min="1" max="50" step="1" disabled>
+                    <span class="help-text">Auto-adjusted based on polygon size</span>
                 </div>
                 
                 <div class="control-group">
@@ -53,6 +60,11 @@
                 <div id="results" style="display: none;">
                     <h3>Results</h3>
                     <div id="results-content"></div>
+                </div>
+                
+                <div id="forecast-chart" style="display: none;">
+                    <h3>Hourly Forecast</h3>
+                    <canvas id="rain-chart"></canvas>
                 </div>
                 
                 <div id="loading" style="display: none;">
@@ -73,6 +85,9 @@
     
     <!-- Turf.js for geometric calculations -->
     <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    
+    <!-- Chart.js for forecast visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <script src="app.js"></script>
 </body>

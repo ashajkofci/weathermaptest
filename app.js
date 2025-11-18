@@ -7,6 +7,7 @@ class RainVolumeCalculator {
         this.apiKey = localStorage.getItem('openweathermap_api_key') || '';
         this.precipitationLayer = null;
         this.overlayVisible = false;
+        this.forecastChart = null;
         
         this.init();
     }
@@ -91,10 +92,21 @@ class RainVolumeCalculator {
             this.togglePrecipitationOverlay();
         });
         
+        document.getElementById('search-btn').addEventListener('click', () => {
+            this.searchLocation();
+        });
+        
         // Allow Enter key to save API key
         document.getElementById('api-key').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.saveApiKey();
+            }
+        });
+        
+        // Allow Enter key to search location
+        document.getElementById('location-search').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchLocation();
             }
         });
     }
@@ -102,8 +114,9 @@ class RainVolumeCalculator {
     loadApiKey() {
         if (this.apiKey) {
             document.getElementById('api-key').value = this.apiKey;
-            // Enable overlay button if API key exists
+            // Enable overlay button and search button if API key exists
             document.getElementById('toggle-overlay-btn').disabled = false;
+            document.getElementById('search-btn').disabled = false;
         }
     }
     
@@ -115,8 +128,9 @@ class RainVolumeCalculator {
             localStorage.setItem('openweathermap_api_key', this.apiKey);
             this.showNotification('API key saved successfully!', 'success');
             
-            // Enable overlay button when API key is saved
+            // Enable overlay button and search button when API key is saved
             document.getElementById('toggle-overlay-btn').disabled = false;
+            document.getElementById('search-btn').disabled = false;
         } else {
             this.showNotification('Please enter a valid API key', 'error');
         }
@@ -125,6 +139,57 @@ class RainVolumeCalculator {
     showNotification(message, type) {
         // Simple notification - could be enhanced with a proper notification library
         alert(message);
+    }
+    
+    async searchLocation() {
+        const searchInput = document.getElementById('location-search');
+        const query = searchInput.value.trim();
+        
+        if (!query) {
+            this.showNotification('Please enter a location to search', 'error');
+            return;
+        }
+        
+        if (!this.apiKey) {
+            this.showNotification('Please enter your OpenWeatherMap API key first', 'error');
+            return;
+        }
+        
+        try {
+            // Using OpenWeatherMap Geocoding API
+            const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${this.apiKey}`;
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch location data');
+            }
+            
+            const data = await response.json();
+            
+            if (data.length === 0) {
+                this.showNotification('Location not found. Please try a different search term.', 'error');
+                return;
+            }
+            
+            const location = data[0];
+            
+            // Center map on the found location
+            this.map.setView([location.lat, location.lon], 12);
+            
+            // Add a temporary marker
+            const marker = L.marker([location.lat, location.lon]).addTo(this.map);
+            marker.bindPopup(`${location.name}${location.state ? ', ' + location.state : ''}${location.country ? ', ' + location.country : ''}`).openPopup();
+            
+            // Remove marker after 5 seconds
+            setTimeout(() => {
+                this.map.removeLayer(marker);
+            }, 5000);
+            
+        } catch (error) {
+            console.error('Error searching location:', error);
+            this.showNotification(`Error: ${error.message}`, 'error');
+        }
     }
     
     togglePrecipitationOverlay() {
@@ -200,6 +265,7 @@ class RainVolumeCalculator {
         
         this.showLoading(true);
         this.hideResults();
+        this.hideForecastChart();
         
         try {
             // Get polygon coordinates
@@ -212,12 +278,25 @@ class RainVolumeCalculator {
             
             // Calculate polygon area in square meters
             const area = turf.area(polygon);
+            const areaKm2 = area / 1_000_000;
+            
+            // Auto-adjust grid resolution based on polygon size
+            let gridResolution;
+            if (areaKm2 < 1000) {
+                gridResolution = 10;
+            } else if (areaKm2 <= 20000) {
+                gridResolution = 50;
+            } else {
+                throw new Error(`Polygon too large (${areaKm2.toFixed(2)} km²). Maximum supported area is 20,000 km².`);
+            }
+            
+            // Update grid resolution display
+            document.getElementById('grid-resolution').value = gridResolution;
             
             // Get bounding box
             const bbox = turf.bbox(polygon);
-            
-            // Get grid resolution from input
-            const gridResolution = parseFloat(document.getElementById('grid-resolution').value);
+            const center = turf.center(polygon);
+            const centerCoords = center.geometry.coordinates;
             
             // Fetch precipitation data for the area
             const precipitationData = await this.fetchPrecipitationData(bbox, polygon, gridResolution);
@@ -227,6 +306,9 @@ class RainVolumeCalculator {
             
             // Display results
             this.displayResults(results);
+            
+            // Fetch and display hourly forecast
+            await this.fetchAndDisplayForecast(centerCoords[1], centerCoords[0], area);
             
             // Update precipitation overlay with actual resolution after calculation
             this.updatePrecipitationOverlay(0.7);
@@ -358,6 +440,136 @@ class RainVolumeCalculator {
         };
     }
     
+    async fetchAndDisplayForecast(lat, lng, areaM2) {
+        try {
+            // Using OpenWeatherMap 5 Day / 3 Hour Forecast API (free tier)
+            // Note: Hourly forecast requires a paid subscription, so we use the free 3-hour forecast
+            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch forecast data');
+            }
+            
+            const data = await response.json();
+            
+            // Extract forecast data for the next 48 hours (16 data points * 3 hours each)
+            const forecastData = data.list.slice(0, 16);
+            
+            const labels = [];
+            const precipitationMm = [];
+            const volumeM3 = [];
+            
+            forecastData.forEach(item => {
+                const date = new Date(item.dt * 1000);
+                labels.push(date.toLocaleString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: '2-digit',
+                    hour12: false
+                }));
+                
+                // Get precipitation in mm for the 3-hour period
+                let precip = 0;
+                if (item.rain && item.rain['3h']) {
+                    precip = item.rain['3h'];
+                } else if (item.snow && item.snow['3h']) {
+                    precip = item.snow['3h'];
+                }
+                
+                precipitationMm.push(precip);
+                
+                // Calculate volume for this period
+                const volume = (areaM2 * precip) / 1000; // Convert mm to m
+                volumeM3.push(volume);
+            });
+            
+            this.displayForecastChart(labels, precipitationMm, volumeM3);
+            
+        } catch (error) {
+            console.error('Error fetching forecast:', error);
+            // Don't show error to user for forecast - it's a bonus feature
+        }
+    }
+    
+    displayForecastChart(labels, precipitationMm, volumeM3) {
+        const chartDiv = document.getElementById('forecast-chart');
+        const ctx = document.getElementById('rain-chart');
+        
+        // Destroy existing chart if it exists
+        if (this.forecastChart) {
+            this.forecastChart.destroy();
+        }
+        
+        // Create new chart
+        this.forecastChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Precipitation (mm)',
+                    data: precipitationMm,
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Volume (m³)',
+                    data: volumeM3,
+                    backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Date & Time'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Precipitation (mm)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Volume (m³)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    }
+                }
+            }
+        });
+        
+        chartDiv.style.display = 'block';
+    }
+    
+    hideForecastChart() {
+        document.getElementById('forecast-chart').style.display = 'none';
+    }
+    
     displayResults(results) {
         const resultsDiv = document.getElementById('results');
         const resultsContent = document.getElementById('results-content');
@@ -379,8 +591,8 @@ class RainVolumeCalculator {
                 <strong>Sample Points:</strong> ${results.numSamplePoints} (grid resolution: ${results.gridResolutionKm} km)
             </div>
             <div class="result-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #10b981;">
-                <em>Note: Precipitation data is based on current/recent weather conditions from OpenWeatherMap. 
-                For historical or forecast data, consider upgrading to OpenWeatherMap's premium APIs.</em>
+                <em>Note: Current precipitation data is from OpenWeatherMap Current Weather API. 
+                Forecast data (shown in chart below) uses 3-hour intervals from the free forecast API.</em>
             </div>
         `;
         
