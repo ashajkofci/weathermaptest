@@ -292,7 +292,7 @@ class RainVolumeCalculator {
             let gridResolution;
             if (areaKm2 < 20) {
                 gridResolution = 1.5;
-            } else if (areaKm2 <= 200) {
+            } else if (areaKm2 <= 100) {
                 gridResolution = 2;
             } else if (areaKm2 <= 1000) {
                 gridResolution = 5;
