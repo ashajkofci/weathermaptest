@@ -1,101 +1,65 @@
 # Rain Volume Calculator
 
-A web application that calculates the volume of precipitation (rain) within a user-defined polygon using OpenWeatherMap and OpenStreetMap.
+Calculate rainfall volume over any area on a map. Draw a polygon, hit calculate, and get precise volume estimates in cubic hectometres.
 
-## Features
+## What it does
 
-- **Interactive Map**: Draw polygons on an OpenStreetMap-powered map using Leaflet.js
-- **Precise Calculations**: Uses a configurable grid-based sampling system to calculate rain volume accurately
-- **Real-time Weather Data**: Integrates with OpenWeatherMap API for current precipitation data
-- **Detailed Results**: Displays total volume in m³ and liters, along with area statistics and precipitation metrics
+Draw shapes on a map and get rainfall measurements for that exact area. Uses OpenWeatherMap data with a smart grid sampling system that automatically adjusts based on polygon size.
 
-## How It Works
+The app samples multiple points across your polygon, fetches precipitation data for each, then uses inverse distance weighting to interpolate between points. This gives you way better accuracy than just averaging a few random spots.
 
-1. **Polygon Selection**: Users draw a polygon on the map to define the area of interest
-2. **Grid Sampling**: The application creates a grid of sample points within the polygon based on the specified resolution
-3. **Weather Data Retrieval**: For each grid point, the app fetches current precipitation data from OpenWeatherMap
-4. **Volume Calculation**: The average precipitation across all points is multiplied by the total area to calculate volume
+Sample points show up as colored circles so you can see where the data's coming from. Blue intensity indicates precipitation levels.
 
-### Calculation Formula
+## Calculation method
 
-```
-Volume (m³) = Area (m²) × Average Precipitation (m)
-```
+Volume calculation uses numerical integration over a fine mesh grid (4x denser than sample points). Each integration cell checks if it's inside your polygon, interpolates the precipitation value at that point using IDW, then adds up all the tiny volumes.
 
-The precision of the calculation depends on:
-- Grid resolution (smaller = more sample points = more accurate)
-- Quality and recency of OpenWeatherMap data
-- Polygon size (smaller polygons may need finer resolution)
+Grid resolution auto-adjusts:
+- Small areas (<1000 km²): 8 km spacing
+- Larger areas: 20 km spacing
+- Max supported: 20,000 km²
 
-## Setup
+If the initial grid doesn't catch any points (can happen with weird polygon shapes), it automatically halves the resolution until it finds some.
 
-### Prerequisites
+## Quick start
 
-- A modern web browser (Chrome, Firefox, Safari, Edge)
-- An OpenWeatherMap API key (free tier available)
+You need an OpenWeatherMap API key. Free tier works fine.
 
-### Getting an API Key
+1. Get your key at [openweathermap.org/api](https://openweathermap.org/api)
+2. Open `index.html` in a browser (or run a local server)
+3. Paste your API key and save it
+4. Draw a polygon on the map
+5. Click "Calculate Rain Volume"
 
-1. Go to [OpenWeatherMap](https://openweathermap.org/api)
-2. Sign up for a free account
-3. Navigate to your API keys section
-4. Copy your API key
+That's it. Results show up below the map with a forecast chart.
 
-### Running the Application
+### Running it properly
 
-This is a static web application that runs entirely in the browser. You have several options:
+Just opening the HTML file works, but a local server is better:
 
-#### Option 1: Open Locally
-Simply open `index.html` in your web browser.
-
-#### Option 2: Use a Local Server (Recommended)
-
-Using Python:
 ```bash
+# Python
 python -m http.server 8000
-```
 
-Using Node.js:
-```bash
+# Node
 npx http-server -p 8000
 ```
 
-Then navigate to `http://localhost:8000` in your browser.
+Or push to GitHub and enable Pages in repo settings.
 
-#### Option 3: Deploy to GitHub Pages
+## Using the app
 
-1. Push this repository to GitHub
-2. Go to repository Settings → Pages
-3. Select the main branch as source
-4. Your app will be available at `https://yourusername.github.io/repositoryname`
+**Search locations**: Type a city name to jump there on the map.
 
-## Usage
+**Draw polygons**: Use the tools on the left. Polygon tool lets you click points, rectangle is faster for simple boxes. Only one polygon at a time - drawing a new one removes the old.
 
-1. **Enter API Key**: 
-   - Paste your OpenWeatherMap API key in the input field
-   - Click "Save" to store it locally (uses localStorage)
+**Precipitation overlay**: Toggle this to see a precipitation layer. It's coarse but helps you spot weather patterns. Gets a bit sharper after you run a calculation.
 
-2. **Draw a Polygon**:
-   - Click the polygon drawing tool on the map (left sidebar)
-   - Click on the map to add points
-   - Complete the polygon by clicking the first point again
-   - Alternatively, use the rectangle tool for quick selection
+**Calculate**: Button lights up once you draw a polygon. Takes a few seconds depending on size (more sample points = longer wait). Progress shows in the loading spinner.
 
-3. **View Precipitation Overlay** (Optional):
-   - Click "Show Precipitation Overlay" to display a visual precipitation layer on the map
-   - This provides a low-resolution overview of precipitation patterns
-   - Click again to hide the overlay
+**Sample points**: After calculation, colored dots appear showing where data was pulled from. Click them to see exact precipitation values.
 
-4. **Adjust Settings** (Optional):
-   - Set the grid resolution (1-50 km)
-   - Smaller values provide more accuracy but take longer to calculate
-   - Recommended: 5-10 km for large areas, 1-3 km for small areas
-
-5. **Calculate**:
-   - Click "Calculate Rain Volume"
-   - Wait for the calculation to complete
-   - View results including total volume, area, and precipitation statistics
-   - The precipitation overlay will automatically update with higher resolution after calculation
+**Forecast chart**: Shows next 48 hours in 3-hour chunks. Two bars per time slot - precipitation in mm and volume in m³ for your polygon.
 
 ## Technical Details
 
@@ -118,38 +82,6 @@ Then navigate to `http://localhost:8000` in your browser.
 - Current/recent precipitation data (last 1-3 hours) is displayed
 - Grid resolution affects both accuracy and API call count (more points = more calls)
 - API rate limits apply (60 calls/minute for free tier)
-
-## Limitations
-
-1. **Current Data Only**: Free API tier only provides recent precipitation data, not historical accumulation
-2. **Rate Limits**: OpenWeatherMap free tier limits API calls to 60/minute and 1,000,000/month
-3. **Grid Approximation**: Results are approximations based on grid sampling, not continuous coverage
-4. **Network Dependency**: Requires internet connection to fetch weather data
-
-## Improvements for Production
-
-For a production environment, consider:
-
-1. **Backend Service**: 
-   - Implement a server to handle API calls securely
-   - Hide API keys from client-side code
-   - Cache weather data to reduce API calls
-
-2. **Enhanced Accuracy**:
-   - Use OpenWeatherMap's higher-tier APIs for better data
-   - Implement interpolation between grid points
-   - Support historical data queries
-
-3. **Performance**:
-   - Batch API requests more efficiently
-   - Implement progressive rendering for large polygons
-   - Add polygon size limits or warnings
-
-4. **User Experience**:
-   - Add location search functionality
-   - Save polygon history
-   - Export results to CSV/JSON
-   - Add data visualization (heatmaps, charts)
 
 ## License
 
